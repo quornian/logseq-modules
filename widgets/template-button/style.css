@@ -1,0 +1,17 @@
+/* We want this macro to appear inline, rather than as a block */
+div.macro[data-macro-name="template-button"] {
+    display: inline-block;
+}
+
+/* The template-button query has a custom view, hide the usual query view controls */
+div.macro[data-macro-name="template-button"] .custom-query .th {
+    display: none;
+}
+
+.lsw-template-button {
+    border: 1px solid var(--ls-border-color);
+    background-color: var(--ls-secondary-background-color);
+    border-radius: 6px;
+    padding: 1px 8px;
+    font-size: 85%;
+}

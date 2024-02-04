@@ -1,0 +1,24 @@
+.lsw-progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lsw-progress-bar .lsw-bg {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--ls-tertiary-background-color);
+}
+
+.lsw-progress-bar .lsw-fg {
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--ls-active-primary-color);
+}
+
+.lsw-progress-bar .lsw-text {
+    font-size: 80%;
+    white-space: pre;
+    overflow: hidden;
+}

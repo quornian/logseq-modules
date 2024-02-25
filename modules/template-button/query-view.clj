@@ -3,7 +3,7 @@
 ;; removing the original block or keeling it if the "keep" flag is set
 (fn [[block-uuid template-name keep-on-click?]]
   [:button
-   {:class "lsw-template-button"
+   {:class "lsm-template-button"
     :on-click
     (fn [_]
       (if (call-api "exist_template" template-name)

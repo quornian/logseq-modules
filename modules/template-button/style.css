@@ -8,7 +8,7 @@ div.macro[data-macro-name="template-button"] .custom-query .th {
     display: none;
 }
 
-.lsw-template-button {
+.lsm-template-button {
     border: 1px solid var(--ls-border-color);
     background-color: var(--ls-secondary-background-color);
     border-radius: 6px;

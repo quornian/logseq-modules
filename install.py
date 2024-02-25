@@ -1,8 +1,10 @@
 #!/bin/env python3
 import os
+import sys
 from enum import Enum
 import argparse
 import glob
+import json
 from dataclasses import dataclass
 
 
@@ -64,12 +66,15 @@ def main():
     except FileNotFoundError as e:
         styles = [""]
 
+    with open("./config.json") as config_file:
+        install_config = json.load(config_file)
+
     config = install(
         config,
         key=":macros",
         begin_mark=BEGIN_EDN.format("macros"),
         end_mark=END_EDN.format("macros"),
-        include_pattern="widgets/*/macro.*",
+        include_patterns=install_config["patterns"]["macros"],
         transformation=Transformation.ClojureKeywordString,
         uninstall=args.uninstall,
     )
@@ -78,7 +83,7 @@ def main():
         key=":query/result-transforms",
         begin_mark=BEGIN_EDN.format("query-result-transforms"),
         end_mark=END_EDN.format("query-result-transforms"),
-        include_pattern="widgets/*/query-transform.*",
+        include_patterns=install_config["patterns"]["query-transforms"],
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
     )
@@ -87,7 +92,7 @@ def main():
         key=":query/views",
         begin_mark=BEGIN_EDN.format("query-views"),
         end_mark=END_EDN.format("query-views"),
-        include_pattern="widgets/*/query-view.*",
+        include_patterns=install_config["patterns"]["query-views"],
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
     )
@@ -96,14 +101,23 @@ def main():
         key=EndOfFile,
         begin_mark=BEGIN_CSS.format("styles"),
         end_mark=END_CSS.format("styles"),
-        include_pattern="widgets/*/style.css",
+        include_patterns=install_config["patterns"]["styles"],
         transformation=Transformation.PlainText,
         uninstall=args.uninstall,
     )
-    with open(os.path.join(output_directory, "config.edn"), "w") as config_edn:
-        config_edn.write("".join(config))
-    with open(os.path.join(output_directory, "custom.css"), "w") as custom_css:
-        custom_css.write("".join(styles))
+    atomic_overwrite(os.path.join(output_directory, "config.edn"), "".join(config))
+    atomic_overwrite(os.path.join(output_directory, "custom.css"), "".join(styles))
+
+
+def atomic_overwrite(path, content):
+    temp_path = path + ".tmp"
+    with open(temp_path, "w") as temp_file:
+        temp_file.write(content)
+    try:
+        os.rename(temp_path, path)
+    except:
+        os.unlink(temp_path)
+        raise
 
 
 def install(
@@ -111,18 +125,21 @@ def install(
     key: str,
     begin_mark: str,
     end_mark: str,
-    include_pattern: str,
+    include_patterns: list[str],
     transformation: Transformation,
     uninstall: bool,
 ):
-
     insertion = calculate_insertion(config, key, begin_mark, end_mark)
 
     s, e = insertion.start, insertion.end
     indent = " " * s.col
 
     before = config[: s.row] + [config[s.row][: s.col]]
-    after = [config[e.row][e.col :]] + config[e.row + 1 :]
+    if e.row == len(config):
+        assert e.col == 0
+        after = []
+    else:
+        after = [config[e.row][e.col :]] + config[e.row + 1 :]
     if insertion.start == insertion.end:
         assert "".join(config) == "".join(before + after)
         if after and not uninstall:
@@ -133,7 +150,7 @@ def install(
             after[0] = after[0][len(indent) :]
         return before + after
 
-    compiled = compile_files(indent, include_pattern, transformation)
+    compiled = compile_files(indent, include_patterns, transformation)
 
     config = []
     config.extend(before)
@@ -210,17 +227,17 @@ def just_content(line):
 
 
 def compile_files(
-    indent: str, include_pattern: str, transformation: Transformation
+    indent: str, include_patterns: list[str], transformation: Transformation
 ) -> list[str]:
     compiled = []
-    for path in glob.glob(include_pattern):
+    prev = 0
+    for path in (path for pattern in include_patterns for path in glob.glob(pattern)):
         _, name, ext = path.split("/", 2)
         doc_lines = []
         code_lines = []
         if "query." in ext:
             code_lines.append("\\n#+BEGIN_QUERY\n")
         with open(path) as file:
-            first_line = True
             for line in file:
                 if line.lstrip().startswith(";"):
                     doc_lines.append(line)
@@ -252,7 +269,11 @@ def compile_files(
             compiled.append('"\n')
         else:
             compiled.append("\n")
-
+        print(
+            f"Compiled {path} into {len(compiled) - prev} lines ({transformation})",
+            file=sys.stderr,
+        )
+        prev = len(compiled)
     return compiled
 
 

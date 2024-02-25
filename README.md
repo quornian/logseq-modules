@@ -10,14 +10,33 @@ Since these are not plugins, they will work on all platforms including mobile.
 
 ## What You Get in The Box
 
-| Widget | Preview |
-|--------|---------|
+| Module | Preview / Usage |
+|--------|-----------------|
 | [Progress Bar](./modules/progress-bar) | ![](./modules/progress-bar/preview.png) |
+| | `{{progress-bar 73% Complete, 73}}` |
 | [Template Button](./modules/template-button) | ![](./modules/template-button/preview.png) |
+| | `{{template-button Example Template}}` |
+| [Bar Chart](./modules/bar-chart) | ![](./modules/bar-chart/preview.png) |
+| | `{{bar-chart Status Property, status}}`
+
+See the individual module `README.md` files for more information on usage, and some examples.
+
+## Installation
+
+If you're like me, you like to know how things work before installing them. If so, take a look at [How it Works](#how-it-works) below. Otherwise, here's how you install the modules...
+
+Use the `install.py` script to install all modules. Just point it to the directory named `logseq` inside your graph:
+```
+python3 install.py /path/to/your/graph/logseq
+```
+If you want to preview what the installation would do, you can offer a secondary output directory:
+```
+mkdir /tmp/preview
+python3 install.py /path/to/your/directory/named/logseq --output-directory /tmp/preview
+```
+To remove the modules, use the `--uninstall` flag.
 
 ## How it Works
-
-If you're like me, you like to know how things work before installing them. If not, feel free to [skip this bit](#installation).
 
 Each module can make use of Logseq's [macros](https://docs.logseq.com/#/page/macros), custom [CSS styling](https://docs.logseq.com/#/page/custom.css), and [Advanced Queries](https://docs.logseq.com/#/page/advanced%20queries) (with custom result transforms and views).
 
@@ -99,19 +118,6 @@ result-transform, and view, so these names can be used within the same module or
 In CSS, to target the macro body (at time of writing) you can use `div.macro[data-macro-name="<name-of-module>"]`, or create your own elements with unique class names in your view. It's up to you to make any CSS classes unique and not to collide with Logseq's own.
 
 Note: while I made every attempt to make the insertion logic sound, usual caution should be taken. This tool is provided as-is with absolutely no warranty. Use at your own risk (and back up your files). See below for how to preview the changes before applying them.
-
-## Installation
-
-Use the `install.py` script to install all modules. Just point it to the directory named `logseq` inside your graph:
-```
-python3 install.py /path/to/your/graph/logseq
-```
-If you want to preview what the installation would do, you can offer a secondary output directory:
-```
-mkdir /tmp/preview
-python3 install.py /path/to/your/directory/named/logseq --output-directory /tmp/preview
-```
-To remove the modules, use the `--uninstall` flag.
 
 ## Configuration
 

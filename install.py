@@ -8,10 +8,10 @@ import json
 from dataclasses import dataclass
 
 
-BEGIN_EDN = ";; <logseq-widgets {}>"
-END_EDN = ";; </logseq-widgets {}>"
-BEGIN_CSS = "/* <logseq-widgets {}> */"
-END_CSS = "/* </logseq-widgets {}> */"
+BEGIN_EDN = ";; <logseq-modules {}>"
+END_EDN = ";; </logseq-modules {}>"
+BEGIN_CSS = "/* <logseq-modules {}> */"
+END_CSS = "/* </logseq-modules {}> */"
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Transformation(Enum):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Install/update all widgets")
+    parser = argparse.ArgumentParser(description="Install/update all modules")
     parser.add_argument("--uninstall", action="store_true", help="uninstall")
     parser.add_argument(
         "--output-directory",

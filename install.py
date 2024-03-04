@@ -13,6 +13,9 @@ END_EDN = ";; </logseq-modules {}>"
 BEGIN_CSS = "/* <logseq-modules {}> */"
 END_CSS = "/* </logseq-modules {}> */"
 
+BOF = "beginning-of-file"
+EOF = "end-of-file"
+
 
 @dataclass
 class Location:
@@ -24,14 +27,6 @@ class Location:
 class Range:
     start: Location
     end: Location
-
-
-class BeginningOfFile:
-    pass
-
-
-class EndOfFile:
-    pass
 
 
 class Transformation(Enum):
@@ -63,42 +58,49 @@ def main():
     try:
         with open(os.path.join(input_directory, "custom.css")) as custom_css:
             styles = custom_css.readlines()
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         styles = [""]
 
     with open("./config.json") as config_file:
         install_config = json.load(config_file)
 
+    key = ":macros"
+    log(f"\nPreparing {key} entries for config.edn...")
     config = install(
         config,
-        key=":macros",
+        key=key,
         begin_mark=BEGIN_EDN.format("macros"),
         end_mark=END_EDN.format("macros"),
         include_patterns=install_config["patterns"]["macros"],
         transformation=Transformation.ClojureKeywordString,
         uninstall=args.uninstall,
     )
+    key = ":query/result-transforms"
+    log(f"\nPreparing {key} entries for config.edn...")
     config = install(
         config,
-        key=":query/result-transforms",
+        key=key,
         begin_mark=BEGIN_EDN.format("query-result-transforms"),
         end_mark=END_EDN.format("query-result-transforms"),
         include_patterns=install_config["patterns"]["query-transforms"],
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
     )
+    key = ":query/views"
+    log("\nPreparing :macros entries for config.edn...")
     config = install(
         config,
-        key=":query/views",
+        key=key,
         begin_mark=BEGIN_EDN.format("query-views"),
         end_mark=END_EDN.format("query-views"),
         include_patterns=install_config["patterns"]["query-views"],
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
     )
+    log("\nPreparing CSS style entries for custom.css...")
     styles = install(
         styles,
-        key=EndOfFile,
+        key=EOF,
         begin_mark=BEGIN_CSS.format("styles"),
         end_mark=END_CSS.format("styles"),
         include_patterns=install_config["patterns"]["styles"],
@@ -109,7 +111,12 @@ def main():
     atomic_overwrite(os.path.join(output_directory, "custom.css"), "".join(styles))
 
 
+def log(msg):
+    print(msg, file=sys.stderr)
+
+
 def atomic_overwrite(path, content):
+    log(f"\nWriting {path}...")
     temp_path = path + ".tmp"
     with open(temp_path, "w") as temp_file:
         temp_file.write(content)
@@ -118,6 +125,7 @@ def atomic_overwrite(path, content):
     except:
         os.unlink(temp_path)
         raise
+    log("Done.")
 
 
 def install(
@@ -176,10 +184,10 @@ def calculate_insertion(
         end_loc.col = 0
         return Range(begin_loc, end_loc)
 
-    if key is BeginningOfFile:
+    if key is BOF:
         loc = Location(0, 0)
         return Range(loc, loc)
-    if key is EndOfFile:
+    if key is EOF:
         config.append("\n")
         loc = Location(len(config) - 1, 0)
         return Range(loc, loc)
@@ -269,10 +277,7 @@ def compile_files(
             compiled.append('"\n')
         else:
             compiled.append("\n")
-        print(
-            f"Compiled {path} into {len(compiled) - prev} lines ({transformation})",
-            file=sys.stderr,
-        )
+        log(f"  Compiled {len(compiled) - prev:3} lines from {path}")
         prev = len(compiled)
     return compiled
 

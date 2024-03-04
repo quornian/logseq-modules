@@ -1,0 +1,4 @@
+/* Hide the usual query view controls */
+div.macro[data-macro-name="goals"] .custom-query .th {
+    display: none;
+}

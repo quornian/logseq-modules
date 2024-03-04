@@ -18,6 +18,8 @@ Since these are not plugins, they will work on all platforms including mobile.
 | | `{{template-button Example Template}}` |
 | [Bar Chart](./modules/bar-chart) | ![](./modules/bar-chart/preview.png) |
 | | `{{bar-chart Status Property, status}}`
+| [Goals](./modules/goals) | ![](./modules/goals/preview.png) |
+| | `{{goals}}`
 
 See the individual module `README.md` files for more information on usage, and some examples.
 

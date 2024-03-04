@@ -1,31 +1,42 @@
 # Logseq Modules
 
-This project brings a modular system to [Logseq](https://logseq.com)'s configuration, allowing you to work on complex collections of macros, queries, views, styles, and more.
+A modular system for configuring  [Logseq](https://logseq.com).
 
-A selection of useful widgets is included, both to be used as-is throughout your graph, and as a basis to demonstrate how to write your own modules.
+This project provides an installation mechanism for handling large sets of customizations, without the need to manage sprawling `config.edn` and `custom.css` files manually. It does this by letting you edit each module as a separate set of files that are then bundled into the Logseq config files in a predictable manner.
 
-The aim of this project is to provide an installation mechanism that allows the creation of complex setups, without having to manage sprawling `config.edn` and `custom.css` files manually. It does this by letting you edit each module as a separate set of files that are then bundled into the Logseq config files in a predictable manner.
+A selection of useful "widgets" is included, to demonstrate the system. They can be used as-is throughout your graph, or form a basis for writing your own modules.
 
 Since these are not plugins, they will work on all platforms including mobile.
 
 ## What You Get in The Box
 
-| Module | Preview / Usage |
-|--------|-----------------|
-| [Progress Bar](./modules/progress-bar) | ![](./modules/progress-bar/preview.png) |
-| | `{{progress-bar 73% Complete, 73}}` |
-| [Template Button](./modules/template-button) | ![](./modules/template-button/preview.png) |
-| | `{{template-button Example Template}}` |
-| [Bar Chart](./modules/bar-chart) | ![](./modules/bar-chart/preview.png) |
-| | `{{bar-chart Status Property, status}}`
-| [Goals](./modules/goals) | ![](./modules/goals/preview.png) |
-| | `{{goals}}`
+See the individual module `README.md` files for more information on usage and examples.
 
-See the individual module `README.md` files for more information on usage, and some examples.
+### [Progress Bar](./modules/progress-bar/README.md)
+
+`{{progress-bar 73% Complete, 73}}`
+
+![](./modules/progress-bar/preview.png)
+
+### [Template Button](./modules/template-button/README.md)
+
+`{{template-button Example Template}}`
+
+![](./modules/template-button/preview.png)
+
+### [Bar Chart](./modules/bar-chart/README.md)
+
+`{{bar-chart Status Property, status}}`
+
+![](./modules/bar-chart/preview.png)
+
+### [Goals](./modules/goals/README.md)
+
+`{{goals}}`
+
+![](./modules/goals/preview.png)
 
 ## Installation
-
-If you're like me, you like to know how things work before installing them. If so, take a look at [How it Works](#how-it-works) below. Otherwise, here's how you install the modules...
 
 Use the `install.py` script to install all modules. Just point it to the directory named `logseq` inside your graph:
 ```
@@ -112,7 +123,7 @@ making updates and removal easy.
 
 ### Further Notes
 
-The `%1`-like arguments to macros are unaffected by the transformations and can be used as normal.
+The `$1`-like arguments to macros are unaffected by the transformations and can be used as normal.
 
 The directory name `<name-of-module>` is used to name the macro,
 result-transform, and view, so these names can be used within the same module or even across modules. For example you could have a module that just provides a view, and is used by several other modules, or just as a view to queries in your graph.

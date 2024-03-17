@@ -1,12 +1,12 @@
 #!/bin/env python3
-import os
-import sys
-from enum import Enum
 import argparse
+import difflib
 import glob
 import json
+import os
+import sys
 from dataclasses import dataclass
-
+from enum import Enum
 
 BEGIN_EDN = ";; <logseq-modules {}>"
 END_EDN = ";; </logseq-modules {}>"
@@ -45,6 +45,17 @@ def main():
         "before applying)",
     )
     parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="show a diff of changes without applying them",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="hide log messages",
+    )
+    parser.add_argument(
         "logseq_directory",
         # metavar="logseq-directory"
         help="path to your graph's logseq directory, where config.edn lives",
@@ -53,6 +64,12 @@ def main():
     input_directory = args.logseq_directory
     output_directory = args.output_directory or input_directory
 
+    global log
+    if args.quiet or args.diff:
+
+        def log(*args):
+            pass
+
     with open(os.path.join(input_directory, "config.edn")) as config_edn:
         config = config_edn.readlines()
     try:
@@ -60,6 +77,9 @@ def main():
             styles = custom_css.readlines()
     except FileNotFoundError:
         styles = [""]
+
+    original_config = config[:]
+    original_styles = styles[:]
 
     with open("./config.json") as config_file:
         install_config = json.load(config_file)
@@ -107,8 +127,12 @@ def main():
         transformation=Transformation.PlainText,
         uninstall=args.uninstall,
     )
-    atomic_overwrite(os.path.join(output_directory, "config.edn"), "".join(config))
-    atomic_overwrite(os.path.join(output_directory, "custom.css"), "".join(styles))
+    if args.diff:
+        show_diff("config.edn", original_config, config)
+        show_diff("custom.css", original_styles, styles)
+    else:
+        atomic_overwrite(os.path.join(output_directory, "config.edn"), "".join(config))
+        atomic_overwrite(os.path.join(output_directory, "custom.css"), "".join(styles))
 
 
 def log(msg):
@@ -285,6 +309,41 @@ def compile_files(
 def parse_error(config, pos, msg):
     line_number = 1 + config[:pos].count("\n")
     return RuntimeError(f"Parse failed at line {line_number}: {msg}")
+
+
+def show_diff(filename, before, after):
+    after = "".join(after).splitlines(True)
+    diff = difflib.unified_diff(before, after, filename, filename)
+
+    if sys.stdout.isatty():
+
+        def format(s):
+            end = "\x1b[0m"
+            if s.endswith("\n"):
+                s = s[:-1]
+                if s.endswith("\r"):
+                    s = s[:-1]
+                    end += "\r"
+                end += "\n"
+            if s.startswith(("+++ ", "--- ")):
+                color = "\x1b[1;3m"
+            elif s.startswith("@@ "):
+                color = "\x1b[36;3m"
+            elif s.startswith("-"):
+                color = "\x1b[31m"
+            elif s.startswith("+"):
+                color = "\x1b[32m"
+            else:
+                color = "\x1b[38;5;245m"
+            return f"{color}{s}{end}"
+
+    else:
+
+        def format(s):
+            return s
+
+    for line in diff:
+        sys.stdout.write(format(line))
 
 
 if __name__ == "__main__":

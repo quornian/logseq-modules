@@ -1,16 +1,20 @@
 {
     "patterns": {
         "macros": [
-            "modules/*/macro*.clj"
+            "modules/*/macro*.clj",
+            "more-modules/*/macro*.clj"
         ],
         "query-transforms": [
-            "modules/*/query-transform.clj"
+            "modules/*/query-transform.clj",
+            "more-modules/*/query-transform.clj"
         ],
         "query-views": [
-            "modules/*/query-view.clj"
+            "modules/*/query-view.clj",
+            "more-modules/*/query-view.clj"
         ],
         "styles": [
-            "modules/*/style.css"
+            "modules/*/style.css",
+            "more-modules/*/style.css"
         ]
     }
 }

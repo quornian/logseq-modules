@@ -50,6 +50,12 @@ def main():
         help="show a diff of changes without applying them",
     )
     parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="(also) apply the changes. In diff mode this defaults to false, "
+        "so this flag provides a way to do both",
+    )
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -64,11 +70,12 @@ def main():
     input_directory = args.logseq_directory
     output_directory = args.output_directory or input_directory
 
-    global log
-    if args.quiet or args.diff:
-
-        def log(*args):
-            pass
+    log_writes = True
+    if args.quiet:
+        log_writes = False
+        log.enabled = False
+    if args.diff:
+        log.enabled = False
 
     with open(os.path.join(input_directory, "config.edn")) as config_edn:
         config = config_edn.readlines()
@@ -127,16 +134,37 @@ def main():
         transformation=Transformation.PlainText,
         uninstall=args.uninstall,
     )
+
+    # Normalize changes
+    config = "".join(config).splitlines(True)
+    styles = "".join(styles).splitlines(True)
+
     if args.diff:
         show_diff("config.edn", original_config, config)
         show_diff("custom.css", original_styles, styles)
-    else:
-        atomic_overwrite(os.path.join(output_directory, "config.edn"), "".join(config))
-        atomic_overwrite(os.path.join(output_directory, "custom.css"), "".join(styles))
+    if not args.diff or args.apply:
+        if log_writes:
+            log.enabled = True
+        if config != original_config:
+            atomic_overwrite(
+                os.path.join(output_directory, "config.edn"), "".join(config)
+            )
+        else:
+            log("\nNo config.edn changes")
+        if styles != original_styles:
+            atomic_overwrite(
+                os.path.join(output_directory, "custom.css"), "".join(styles)
+            )
+        else:
+            log("\nNo custom.css changes")
 
 
 def log(msg):
-    print(msg, file=sys.stderr)
+    if log.enabled:
+        print(msg, file=sys.stderr)
+
+
+log.enabled = True
 
 
 def atomic_overwrite(path, content):
@@ -263,17 +291,24 @@ def compile_files(
 ) -> list[str]:
     compiled = []
     prev = 0
-    for path in (path for pattern in include_patterns for path in glob.glob(pattern)):
-        _, name, ext = path.split("/", 2)
+
+    paths = []
+    for pattern in include_patterns:
+        paths.extend(glob.glob(pattern))
+    paths.sort(key=lambda path: path.split("/")[1])  # Module name
+    for path in paths:
+        _, name, filename = path.split("/", 2)
         doc_lines = []
+        end_doc = False
         code_lines = []
-        if "query." in ext:
+        if "query." in filename:
             code_lines.append("\\n#+BEGIN_QUERY\n")
         with open(path) as file:
             for line in file:
-                if line.lstrip().startswith(";"):
+                if not end_doc and line.lstrip().startswith(";"):
                     doc_lines.append(line)
                 else:
+                    end_doc = True
                     if transformation == Transformation.ClojureKeywordString:
                         line = line.replace("\\", "\\\\").replace(r'"', r"\"")
                         if code_lines:
@@ -291,7 +326,7 @@ def compile_files(
             pass
         else:
             raise RuntimeError(f"Unexpected transformation: {transformation}")
-        if "query." in ext:
+        if "query." in filename:
             code_lines.append(f"{indent}#+END_QUERY")
         elif code_lines:
             code_lines[-1] = code_lines[-1].rstrip()
@@ -312,7 +347,6 @@ def parse_error(config, pos, msg):
 
 
 def show_diff(filename, before, after):
-    after = "".join(after).splitlines(True)
     diff = difflib.unified_diff(before, after, filename, filename)
 
     if sys.stdout.isatty():

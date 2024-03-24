@@ -1,0 +1,75 @@
+.lsm-calendar {
+    display: grid;
+    max-width: 100%;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+}
+
+.lsm-calendar>div {
+    min-height: 100px;
+    box-shadow: 0 0 0 1px var(--ls-border-color);
+    /* border-radius: var(--ls-border-radius-low); */
+    font-size: 90%;
+    padding: 0 4px;
+    overflow: hidden;
+    background-color: var(--ls-secondary-background-color);
+}
+
+.lsm-calendar>div:nth-child(7n),
+.lsm-calendar>div:nth-child(7n+1) {
+    background-color: var(--ls-tertiary-background-color);
+}
+
+.lsm-calendar>div.today {
+    background-color: var(--ls-primary-background-color);
+    font-weight: bold;
+    box-shadow: inset 1px 1px 4px 0 var(--ls-border-color);
+    outline: 1px solid var(--ls-active-primary-color);
+    z-index: 1;
+}
+
+.lsm-calendar ul {
+    margin: 0;
+}
+
+.lsm-calendar li {
+    list-style: none;
+    white-space: nowrap;
+    font-size: 80%;
+    line-height: 90%;
+    border-top: 1px dotted var(--ls-border-color);
+    position: relative;
+}
+
+.lsm-calendar li>a {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.lsm-calendar li.TODO>a,
+.lsm-calendar li.DOING>a {
+    font-weight: 600;
+}
+
+.lsm-calendar li.DONE>a {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.lsm-calendar li.scheduled>a::before {
+    content: '▸';
+    position: absolute;
+    left: -4px;
+    top: -1px;
+}
+
+
+.lsm-calendar u {
+    font-size: 80%;
+    text-decoration: none;
+}
+
+.lsm-calendar .past li:not(.TODO)>a {
+    opacity: 0.5;
+}

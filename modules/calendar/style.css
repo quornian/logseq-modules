@@ -1,3 +1,12 @@
+div[data-macro-name="calendar"] .custom-query>.th {
+    display: none;
+}
+
+div:has(div[data-macro-name="calendar"])~div.block-properties {
+    display: none;
+}
+
+
 .lsm-calendar {
     display: grid;
     max-width: 100%;
@@ -5,26 +14,75 @@
     gap: 1px;
 }
 
+.lsm-calendar.lsm-hide-weekends {
+    grid-template-columns: 0 repeat(5, 1fr) 0;
+}
+
+.lsm-calendar h2 {
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: none;
+    padding: 2px;
+    text-align: center;
+}
+
 .lsm-calendar>div {
-    min-height: 100px;
     box-shadow: 0 0 0 1px var(--ls-border-color);
     /* border-radius: var(--ls-border-radius-low); */
     font-size: 90%;
     padding: 0 4px;
     overflow: hidden;
-    background-color: var(--ls-secondary-background-color);
+    background-color: var(--ls-primary-background-color);
+
+    height: 100px;
+    overflow: auto;
 }
 
+.lsm-calendar>div::-webkit-scrollbar {
+    width: 2px;
+}
+
+/* Weekend Days */
 .lsm-calendar>div:nth-child(7n),
 .lsm-calendar>div:nth-child(7n+1) {
-    background-color: var(--ls-tertiary-background-color);
+    background-image: repeating-linear-gradient(315deg,
+            var(--ls-primary-background-color),
+            var(--ls-primary-background-color) 10px,
+            var(--ls-secondary-background-color) 10px,
+            var(--ls-secondary-background-color) 20px);
 }
 
-.lsm-calendar>div.today {
+.lsm-calendar.lsm-hide-weekends>*:nth-child(7n),
+.lsm-calendar.lsm-hide-weekends>*:nth-child(7n+1) {
+    visibility: hidden;
+}
+
+.lsm-calendar>div.lsm-today {
     background-color: var(--ls-primary-background-color);
-    font-weight: bold;
-    box-shadow: inset 1px 1px 4px 0 var(--ls-border-color);
     outline: 1px solid var(--ls-active-primary-color);
+    border-radius: 2px;
+    outline-offset: 1px;
+    z-index: 1;
+}
+
+.lsm-calendar>div h3 {
+    font-size: 13px;
+    text-decoration: none;
+    margin: 1px 0;
+    padding-right: 5px;
+
+    display: inline-block;
+    background-color: var(--ls-primary-background-color);
+    border-radius: 3px;
+    box-shadow: 0 0 4px 1px var(--ls-primary-background-color);
+
+    position: sticky;
+    top: -3px;
     z-index: 1;
 }
 
@@ -34,11 +92,15 @@
 
 .lsm-calendar li {
     list-style: none;
-    white-space: nowrap;
-    font-size: 80%;
-    line-height: 90%;
-    border-top: 1px dotted var(--ls-border-color);
+    padding: 1px 0;
+    font-size: 12px;
+    line-height: 14px;
+    /* border-top: 1px solid var(--ls-border-color); */
     position: relative;
+
+    word-break: break-all;
+    max-height: 28px;
+    overflow: hidden;
 }
 
 .lsm-calendar li>a {
@@ -47,9 +109,8 @@
     margin: 0;
 }
 
-.lsm-calendar li.TODO>a,
-.lsm-calendar li.DOING>a {
-    font-weight: 600;
+.lsm-calendar li.lsm-task>a {
+    font-weight: 500;
 }
 
 .lsm-calendar li.DONE>a {
@@ -57,19 +118,30 @@
     opacity: 0.5;
 }
 
-.lsm-calendar li.scheduled>a::before {
-    content: '▸';
-    position: absolute;
-    left: -4px;
-    top: -1px;
+.lsm-calendar .lsm-task:not(.DONE)>a::before {
+    /* Inverted colors */
+    color: var(--ls-primary-background-color);
+    background-color: var(--ls-active-primary-color);
+    border-radius: 3px;
 }
 
 
-.lsm-calendar u {
-    font-size: 80%;
-    text-decoration: none;
+.lsm-calendar .lsm-task.lsm-scheduled>a::before {
+    content: '↘';
 }
 
-.lsm-calendar .past li:not(.TODO)>a {
+.lsm-calendar .lsm-task:not(.lsm-scheduled)>a::before {
+    content: '→';
+}
+
+.lsm-calendar .lsm-task.DONE>a::before {
+    content: '✓';
+}
+
+.lsm-calendar .lsm-past li:not(.TODO)>a {
     opacity: 0.5;
+}
+.lsm-calendar li.lsm-overdue>a {
+    background-color: var(--ls-error-background-color);
+    color: var(--ls-error-text-color);
 }

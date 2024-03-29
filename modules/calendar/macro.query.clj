@@ -1,12 +1,18 @@
-{:inputs [:today :-13d :+27d]
+{:inputs [:current-block :today :-13d :+20d]
  :query
- [:find ?today (pull ?task-or-event
-                     [:block/uuid
-                      :block/content
-                      :block/scheduled
-                      :block/marker
-                      {:block/page [:block/journal-day]}])
-  :in $ ?today ?first-date ?last-date
+ [:find ?today
+        (pull ?calendar
+              [:block/uuid
+               :block/content
+               :block/properties])
+        (pull ?task-or-event
+              [:block/uuid
+               :block/content
+               :block/scheduled
+               :block/marker
+               {:block/page [:block/journal-day]}])
+  :keys today calendar item
+  :in $ ?calendar ?today ?first-date ?last-date
   :where
   [?journal :block/journal? true]
   [?journal :block/journal-day ?journal-day]
@@ -14,13 +20,20 @@
   [(<= ?journal-day ?last-date)]
 
   (or-join [?journal ?journal-day ?task-or-event]
+   ;;
+   ;; Include all "events": blocks on journals that start "HH:MM - "
    (and
     [?task-or-event :block/parent ?journal]
     [?task-or-event :block/content ?content]
     [(re-pattern "^\\d\\d:\\d\\d - ") ?event-pattern]
     [(re-find ?event-pattern ?content) _])
+   ;;
+   ;; Include all blocks scheduled for the day (tasks or otherwise)
    (and
     [?task-or-event :block/scheduled ?journal-day])
+   ;;
+   ;; Include all tasks created on the day that are not scheduled at all
+   ;; These are assumed to be same-day tasks
    (and
     [?task-or-event :block/marker _]
     [?task-or-event :block/page ?journal]
@@ -29,18 +42,26 @@
     ]
  :result-transform
  (fn [results]
-   (let [today (first results)
-         events-and-tasks (take-nth 2 (drop 1 results))
+   (let [{:keys [today calendar]} (first results)
          {tasks false, events true} (group-by (fn [et] (nil? (:block/marker et)))
-                                              events-and-tasks)
-         extract-day (fn [e] (or (:block/scheduled e) (:block/journal-day (:block/page e))))]
+                                              (map :item results))
+         extract-day (fn [e] (or (:block/scheduled e) (:block/journal-day (:block/page e))))
+         events (group-by extract-day events)]
      [{:today today
+       :calendar calendar
        :tasks (group-by extract-day tasks)
-       :events (group-by extract-day events)
+       :events (dissoc events nil)
       }]))
  :view
- (fn [[{:keys [today tasks events]}]]
-   (let [;; Some operators for convenience
+ (fn [[{:keys [today calendar tasks events]}]]
+   (let [;;
+         ;; Settings
+         ;;
+         properties (:block/properties calendar)
+         show-weekends (get properties :calendar/show-weekends true)
+         highlight-overdue (get properties :calendar/highlight-overdue false)
+    
+    ;; Some operators for convenience
          % mod
          ÷ quot
          ;;
@@ -101,12 +122,17 @@
                  [y m d] (ymd->seq ymd)]
              (clojure.string/replace
               fmt
-              (re-pattern "%.")
+              (re-pattern "%[YmdA]|yyyy|MM|dd|EEEE")
               (fn [match]
                 (case match
                       "%Y" (str y)
-                      "%m" (str m)
-                      "%d" (str d)
+                      "yyyy" (str y)
+                      "%m" (str (when (< m 10) "0") m)
+                      "MM" (str (when (< m 10) "0") m)
+                      "%d" (str (when (< d 10) "0") d)
+                      "dd" (str (when (< d 10) "0") d)
+                      "%A" (weekday (ymd->wd ymd))
+                      "EEEE" (weekday (ymd->wd ymd))
                       match)))))
          ;;
          ;;
@@ -122,8 +148,13 @@
          ;;
          render-block
          (fn render-block [block]
-           (let [pattern (re-pattern "\\(\\([^)]*\\)\\)|\\{\\{[^}]*\\}\\}|[\\[\\]]+|\\*+|\\~+| - ")]
-             (clojure.string/replace (block-text block) pattern " ")))
+           (let [to-strip (str "^(TODO|LATER|DOING|NOW|DONE) "
+                               "|](\\[^)]+\\)"          ;; Links ](...)
+                               "|[\\[\\]]+"             ;; Any other [ or ]
+                               "|\\{\\{[^}]*\\}\\}"     ;; Macros {{...}}
+                               "|\\(\\([^)]*\\)\\)"     ;; Block refs ((...))
+                               "|\\*\\*|\\~\\~| - ")]   ;; ** or ~~ or " - "
+                 (clojure.string/replace (block-text block) (re-pattern to-strip) " ")))
          ;;
          ;;
          ;;
@@ -133,43 +164,70 @@
             :on-click
             (fn [e] (if (aget e "shiftKey")
                       (call-api "open_in_right_sidebar" (:block/uuid ref))
-                      (call-api "push_state" :page {:name (:block/uuid ref)})))})]
+                      (call-api "push_state" :page {:name (:block/uuid ref)})))})
+        ;;
+        ;; Settings
+        ;;
+        ;; :journal/page-title-format "yyyy-MM-dd EEEE"
+        config (js->clj (call-api "get_current_graph_configs"))
+        journal-format (get config "journal/page-title-format")
+        ]
      [:div.lsm-calendar
+      {:class [(when (not show-weekends) "lsm-hide-weekends")]}
       ;;
       ;; Day of week headings
       ;;
-      (map (fn [wd] [:strong (weekday wd)]) (range 7))
+      (map (fn [wd] [:h2 (weekday wd)]) (range 7))
       ;;
       ;; Cells
       ;; 
       (let [current (ymd->jdn today)
             start (- current (jdn->wd current) 7)
-            visible-days (range start (+ start 35))]
+            visible-days (range start (+ start 28))]
         (map
          (fn [day]
-           (let [ymd (jdn->ymd day)]
-             [:div {:class (if (< ymd today) "past" (if (> ymd today) "future" "today"))}
-              [:u (last (ymd->seq (jdn->ymd day)))]
+           (let [ymd (jdn->ymd day), past (< ymd today)]
+             [:div {:class (if past "lsm-past" (if (> ymd today) "lsm-future" "lsm-today"))}
               ;;
-              ;; Tasks
+              [:a.page-ref {:href (str "#/page/" (format-date ymd journal-format)) } [:h3 (last (ymd->seq (jdn->ymd day)))]]
+              ;;
+              ;; Incomplete tasks
               [:ul
                (map
                 (fn [e]
-                  [:li {:title (:block/content e)
+                  [:li.lsm-task {:title (:block/content e)
                         :class [(:block/marker e)
-                                (when (:block/scheduled e) "scheduled")]}
+                                (when (:block/scheduled e) "lsm-scheduled")
+                                (when (and past highlight-overdue) "lsm-overdue")]}
                    [:a.block-ref (ref-link e) (render-block e)]])
-                (reverse (sort-by :block/marker (get tasks ymd))))
+                (reverse
+                 (sort-by :block/marker
+                  (filter (fn [task] (not= (:block/marker task) "DONE"))
+                   (get tasks ymd)))))
               ]
               ;;
               ;; Events
               [:ul
                (map
                 (fn [e]
-                  [:li {:title (:block/content e)
+                  [:li.lsm-event {:title (:block/content e)
                         :class (:block/marker e)}
                    [:a.block-ref (ref-link e) (render-block e)]])
                 (sort-by :block/content (get events ymd)))
+              ]
+              ;;
+              ;; Completed tasks
+              [:ul
+               (map
+                (fn [e]
+                  [:li.lsm-task {:title (:block/content e)
+                        :class [(:block/marker e)
+                                (when (:block/scheduled e) "lsm-scheduled")]}
+                   [:a.block-ref (ref-link e) (render-block e)]])
+                (reverse
+                 (sort-by :block/marker
+                  (filter (fn [task] (= (:block/marker task) "DONE"))
+                   (get tasks ymd)))))
               ]
              ]))
          visible-days))]))}

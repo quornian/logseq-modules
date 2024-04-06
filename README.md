@@ -36,6 +36,12 @@ See the individual module `README.md` files for more information on usage and ex
 
 ![](./modules/goals/preview.png)
 
+### [Calendar](./modules/calendar/README.md)
+
+`{{calendar}}`
+
+![](./modules/calendar/preview.png)
+
 ## Installation
 
 Use the `install.py` script to install all modules. Just point it to the directory named `logseq` inside your graph:

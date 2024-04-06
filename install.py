@@ -50,6 +50,11 @@ def main():
         help="show a diff of changes without applying them",
     )
     parser.add_argument(
+        "--color",
+        action="store_true",
+        help="always use color",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="(also) apply the changes. In diff mode this defaults to false, "
@@ -136,12 +141,12 @@ def main():
     )
 
     # Normalize changes
-    config = "".join(config).splitlines(True)
-    styles = "".join(styles).splitlines(True)
+    config = trim_whitespace("".join(config).splitlines(True))
+    styles = trim_whitespace("".join(styles).splitlines(True))
 
     if args.diff:
-        show_diff("config.edn", original_config, config)
-        show_diff("custom.css", original_styles, styles)
+        show_diff("config.edn", original_config, config, args.color)
+        show_diff("custom.css", original_styles, styles, args.color)
     if not args.diff or args.apply:
         if log_writes:
             log.enabled = True
@@ -286,6 +291,12 @@ def just_content(line):
     return line.rstrip()
 
 
+def trim_whitespace(lines):
+    for i in range(len(lines)):
+        lines[i] = lines[i].rstrip() + "\n"
+    return lines
+
+
 def compile_files(
     indent: str, include_patterns: list[str], transformation: Transformation
 ) -> list[str]:
@@ -346,10 +357,10 @@ def parse_error(config, pos, msg):
     return RuntimeError(f"Parse failed at line {line_number}: {msg}")
 
 
-def show_diff(filename, before, after):
+def show_diff(filename, before, after, force_color=False):
     diff = difflib.unified_diff(before, after, filename, filename)
 
-    if sys.stdout.isatty():
+    if sys.stdout.isatty() or force_color:
 
         def format(s):
             end = "\x1b[0m"

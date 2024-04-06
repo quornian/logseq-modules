@@ -8,7 +8,7 @@
             goto-def (fn [_] (call-api "push_state" :page {:name (:block/uuid dfn)}))]
         [:tr
          [:td [:a {:on-click goto-def} label]]
-         [:td 
+         [:td
           [:div {:class "lsm-progress-bar"}
            [:div {:class "lsm-bg"}
             [:div {:class "lsm-fg"

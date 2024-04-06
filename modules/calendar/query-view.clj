@@ -1,11 +1,16 @@
 
  (fn [[{:keys [today calendar tasks events]}]]
-   (let [properties (:block/properties calendar)
-         % mod, ÷ quot
+   (let [% mod, ÷ quot
 
          ;; Calendar view settings
-         show-weekends (get properties :calendar/show-weekends true)
-         highlight-overdue (get properties :calendar/highlight-overdue false)
+         settings (:block/properties calendar)
+         show-weekends (get settings :calendar/show-weekends true)
+         highlight-overdue (get settings :calendar/highlight-overdue false)
+
+         ;; User preferences
+         ;; :journal/page-title-format "yyyy-MM-dd EEEE"
+         config (js->clj (call-api "get_current_graph_configs"))
+         journal-format (get config "journal/page-title-format")
 
          ;; Extract a YYYYMMDD number into a [YYYY MM DD] sequence
          ymd->seq (fn [ymd] [(÷ ymd 10000) (÷ (% ymd 10000) 100) (% ymd 100)])
@@ -23,7 +28,7 @@
          ;; Calculate the Gregorian date from a given Julian Day Number
          ;; https://en.wikipedia.org/wiki/Julian_day
          jdn->ymd
-         (fn jdn->ymd [j]
+         (fn [j]
            (let [a (+ j 1401 (÷ (* (÷ (+ (* 4 j) 274277) 146097) 3) 4) -38)
                  b (+ (* 4 a) 3), h (+ (* 5 (÷ (% b 1461) 4)) 2)
                  d (+ (÷ (% h 153) 5) 1), m (+ (% (+ (÷ h 153) 2) 12) 1)
@@ -35,8 +40,8 @@
          ymd+ (fn [ymd sub] (jdn->ymd (+ (ymd->jdn ymd) sub)))
 
          ;; Weekday number with zero denoting Sunday
-         jdn->wd (fn jdn->wd [jdn] (% (+ jdn 1) 7))
-         ymd->wd (fn ymd->wd [ymd] (-> ymd ymd->jdn jdn->wd))
+         jdn->wd (fn [jdn] (% (+ jdn 1) 7))
+         ymd->wd (fn [ymd] (jdn->wd (ymd->jdn ymd)))
 
          ;; Names for weekdays and months
          weekday ["Sunday" "Monday" "Tuesday" "Wednesday"
@@ -44,9 +49,9 @@
          month ["December" "January" "February" "March" "April" "May" "June"
                 "July" "August" "September" "October" "November" "December"]
 
-         ;; Simple date formatting function
+         ;; Format dates as strings
          format-date
-         (fn format-date [ymd fmt]
+         (fn [ymd fmt]
            (let [j (ymd->jdn ymd)
                  [y m d] (ymd->seq ymd)]
              (clojure.string/replace
@@ -63,20 +68,16 @@
                   "%A" (weekday (ymd->wd ymd))
                   "EEEE" (weekday (ymd->wd ymd))
                   match)))))
-         ;;
-         ;;
-         ;;
-         week-start
-         (fn week-start [ymd] (ymd- ymd (ymd->wd ymd)))
-         ;;
-         ;;
-         ;;
+
+         ;; Offset a date back to the start of the week
+         week-start (fn [ymd] (ymd- ymd (ymd->wd ymd)))
+
+         ;; First line of a block's content
          block-text (fn [b] (first (clojure.string/split-lines (:block/content b))))
-         ;;
-         ;; Render a block's content
-         ;;
-         render-block
-         (fn render-block [block]
+
+         ;; Strip a block's content of any formatting characters
+         unformat-block
+         (fn [block]
            (let [to-strip (str "^(TODO|LATER|DOING|NOW|DONE|CANCELED) "
                                "|](\\[^)]+\\)"          ;; Links ](...)
                                "|[\\[\\]]+"             ;; Any other [ or ]
@@ -84,31 +85,23 @@
                                "|\\(\\([^)]*\\)\\)"     ;; Block refs ((...))
                                "|\\*\\*|\\~\\~| - ")]   ;; ** or ~~ or " - "
              (clojure.string/replace (block-text block) (re-pattern to-strip) " ")))
-         ;;
-         ;;
-         ;;
+
+         ;; Properties for use in an [:a ...] element linking to a block or page
          ref-link
          (fn ref-link [ref]
            {:href (str "#/page/" (:block/uuid ref))
             :on-click
             (fn [e] (if (aget e "shiftKey")
                       (call-api "open_in_right_sidebar" (:block/uuid ref))
-                      (call-api "push_state" :page {:name (:block/uuid ref)})))})
-        ;;
-        ;; Settings
-        ;;
-        ;; :journal/page-title-format "yyyy-MM-dd EEEE"
-         config (js->clj (call-api "get_current_graph_configs"))
-         journal-format (get config "journal/page-title-format")]
+                      (call-api "push_state" :page {:name (:block/uuid ref)})))})]
+     ;; The main view
      [:div.lsm-calendar
       {:class [(when (not show-weekends) "lsm-hide-weekends")]}
-      ;;
+
       ;; Day of week headings
-      ;;
       (map (fn [wd] [:h2 (weekday wd)]) (range 7))
-      ;;
-      ;; Cells
-      ;; 
+
+      ;; Cells for each day
       (let [current (ymd->jdn today)
             start (- current (jdn->wd current) 7)
             visible-days (range start (+ start 28))]
@@ -116,9 +109,10 @@
          (fn [day]
            (let [ymd (jdn->ymd day), past (< ymd today)]
              [:div {:class (if past "lsm-past" (if (> ymd today) "lsm-future" "lsm-today"))}
-              ;;
-              [:a.page-ref {:href (str "#/page/" (format-date ymd journal-format))} [:h3 (last (ymd->seq (jdn->ymd day)))]]
-              ;;
+
+              ;; Numeric day of month
+              [:a.page-ref {:href (str "#/page/" (format-date ymd journal-format))} [:h3 (% ymd 100)]]
+
               ;; Incomplete tasks
               [:ul
                (map
@@ -127,32 +121,31 @@
                                  :class [(:block/marker e)
                                          (when (:block/scheduled e) "lsm-scheduled")
                                          (when (and past highlight-overdue) "lsm-overdue")]}
-                   [:a.block-ref (ref-link e) (render-block e)]])
+                   [:a.block-ref (ref-link e) (unformat-block e)]])
                 (reverse
                  (sort-by :block/marker
-                          (filter (fn [task] (not= (:block/marker task) "DONE"))
+                          (filter (fn [task] (not (contains? #{"DONE" "CANCELED"} (:block/marker task))))
                                   (get tasks ymd)))))]
-              ;;
               ;; Events
               [:ul
                (map
                 (fn [e]
                   [:li.lsm-event {:title (:block/content e)
                                   :class (:block/marker e)}
-                   [:a.block-ref (ref-link e) (render-block e)]])
+                   [:a.block-ref (ref-link e) (unformat-block e)]])
                 (sort-by :block/content (get events ymd)))]
-              ;;
-              ;; Completed tasks
+
+              ;; Complete/canceled tasks
               [:ul
                (map
                 (fn [e]
                   [:li.lsm-task {:title (:block/content e)
                                  :class [(:block/marker e)
                                          (when (:block/scheduled e) "lsm-scheduled")]}
-                   [:a.block-ref (ref-link e) (render-block e)]])
+                   [:a.block-ref (ref-link e) (unformat-block e)]])
                 (reverse
                  (sort-by :block/marker
-                          (filter (fn [task] (= (:block/marker task) "DONE"))
+                          (filter (fn [task] (contains? #{"DONE" "CANCELED"} (:block/marker task)))
                                   (get tasks ymd)))))]]))
 
          visible-days))]))

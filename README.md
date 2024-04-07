@@ -1,46 +1,50 @@
 # Logseq Modules
 
-A modular system for configuring  [Logseq](https://logseq.com).
+Logseq Modules is a system for extending  [Logseq](https://logseq.com) without plugins.
 
-This project provides an installation mechanism for handling large sets of customizations, without the need to manage sprawling `config.edn` and `custom.css` files manually. It does this by letting you edit each module as a separate set of files that are then bundled into the Logseq config files in a predictable manner.
+This project provides a number of macros to use in your Logseq graphs and a Python script to install them.
 
-A selection of useful "widgets" is included, to demonstrate the system. They can be used as-is throughout your graph, or form a basis for writing your own modules.
+It also provides a means of working on several such macros as separate _modules_, each of which is then _compiled_ into your graph's `config.edn` and `custom.css` files. This is done in a predictable manner that's easy to uninstall.
 
-Since these are not plugins, they will work on all platforms including mobile.
+Feel free to install these modules as is, or use them as a basis for your own customizations.
 
-## What You Get in The Box
+Note that since these are not plugins, they will work on all platforms including mobile.
 
-See the individual module `README.md` files for more information on usage and examples.
+## What's in the Box?
 
-### [Progress Bar](./modules/progress-bar/README.md)
+### Template Button
 
-`{{progress-bar 73% Complete, 73}}`
-
-![](./modules/progress-bar/preview.png)
-
-### [Template Button](./modules/template-button/README.md)
-
-`{{template-button Example Template}}`
+This macro presents a button that, when clicked, inserts a named template after or replacing the current block.
+[Read more...](./modules/template-button/README.md)
 
 ![](./modules/template-button/preview.png)
 
-### [Bar Chart](./modules/bar-chart/README.md)
+### Calendar
 
-`{{bar-chart Status Property, status}}`
+This macro produces a calendar displaying recent and future events/tasks.
+[Read more...](./modules/calendar/README.md)
 
-![](./modules/bar-chart/preview.png)
+![](./modules/calendar/preview.png)
 
-### [Goals](./modules/goals/README.md)
+### Goals
 
-`{{goals}}`
+_Goals_ is a system for establishing, working towards and reviewing a set of goals.
+[Read more...](./modules/goals/README.md)
 
 ![](./modules/goals/preview.png)
 
-### [Calendar](./modules/calendar/README.md)
+### Progress Bar
 
-`{{calendar}}`
+This macro displays a simple progress bar.
+[Read more...](./modules/progress-bar/README.md)
 
-![](./modules/calendar/preview.png)
+![](./modules/progress-bar/preview.png)
+
+### Bar Chart
+
+Bar Chart can be used as a macro -summarizing a given property - or as a `:view` for your own advanced queries. [Read more...](./modules/bar-chart/README.md)
+
+![](./modules/bar-chart/preview.png)
 
 ## Installation
 
@@ -48,18 +52,23 @@ Use the `install.py` script to install all modules. Just point it to the directo
 ```
 python3 install.py /path/to/your/graph/logseq
 ```
-If you want to preview what the installation would do, you can offer a secondary output directory:
+If you want to preview what the installation would do, pass the `--diff` flag:
 ```
-mkdir /tmp/preview
-python3 install.py /path/to/your/directory/named/logseq --output-directory /tmp/preview
+python3 install.py --diff /path/to/your/directory/named/logseq
 ```
-To remove the modules, use the `--uninstall` flag.
+This disables installation and only shows what _would_ be applied.
 
-## How it Works
+To show the differences and _also_ apply the changes use `--diff` and `--apply`.
 
-Each module can make use of Logseq's [macros](https://docs.logseq.com/#/page/macros), custom [CSS styling](https://docs.logseq.com/#/page/custom.css), and [Advanced Queries](https://docs.logseq.com/#/page/advanced%20queries) (with custom result transforms and views).
+### Uninstallation
 
-A module is defined by a named subdirectory of the `modules` directory, containing one or more of the following files:
+To remove the installed modules, use the `--uninstall` flag.
+
+## Developing Modules
+
+Each module can make use of Logseq's [macros](https://docs.logseq.com/#/page/macros), custom [CSS styling](https://docs.logseq.com/#/page/custom.css) and [Advanced Queries](https://docs.logseq.com/#/page/advanced%20queries) (with custom result transforms and views).
+
+A module is defined by a named subdirectory within the `modules` top level directory. It may contain one or more of the following files:
 ```
 modules/
   <name-of-module>/
@@ -68,12 +77,11 @@ modules/
     query-view.clj
     style.css
 ```
+On running `install.py`, the contents of each of these files is collected, [transformed](#transformations) then inserted into the relevant file and section of Logseq's configuration.
 
-The contents of each of these files is inserted into the relevant section of the relevant configuration file of Logseq, with minor [transformations](#transformations).
+Entries are added to the graph's config file (`logseq/config.edn`) under the `:macros`, `:query/result-transforms` and `:query/views` sections. Styling is added to the `logseq/custom.css` file.
 
-Entries are added to the graph's config file, `logseq/config.edn`, under the `:macros`, `:query/result-transforms`, and `:query/views` sections. Styling is added to the `logseq/custom.css` file.
-
-All entries are inserted in a block that looks like this:
+All entries are inserted in a block like this making updates and removal easy:
 ```clojure
 ;; <logseq-modules query-views>
 ...
@@ -85,18 +93,19 @@ All entries are inserted in a block that looks like this:
 /* </logseq-modules styles> */
 ```
 
-making updates and removal easy.
-
 ### Transformations
 
-- The contents of `macro.clj` files are copied as-is into `logseq/config.edn` under the `:macros` mapping, under their `:<name-of-module>` key.
+To aid in the development of modules, certain files are edited as Clojure files, then transformed into the proper form for `config.edn`.
+
+- The contents of a `macro.clj` file are copied as-is into `logseq/config.edn` within the `:macros` mapping, under the `:<name-of-module>` key.
   ```clojure
   ;; File: config.edn
   {:macros
    {:<name-of-module> FILE-CONTENT}}
   ```
+  An example of this is [progress-bar/macro.clj](./modules/progress-bar/macro.clj).
 
-- The contents of `macro.query.clj` files are first transformed so that they create an advanced query inside the macro. Logseq requires a blank line before the query block, and for all strings and backslashes to be escaped for this to work. The purpose of this transformation is to allow you to write a normal Clojure source file and have these requirements handled for you. An example transformation looks like this:
+- The contents of a `macro.query.clj` file is transformed such that it creates an advanced query _inside_ the macro. Embedding advanced queries in a macro is enabled by inserting a blank line before the query block and escaping double quotes and backslash characters within (thanks to [this comment](https://discuss.logseq.com/t/is-it-possible-with-macros-to-run-a-db-query-for-a-block-id-an-build-the-embed-block-id-inside-a-page/20952/16?u=iant) in the Logseq forums). This transformation allows queries to be written as Clojure source files, with these requirements handled automatically. An example transformation looks like this:
   
   Source:
   ```clojure
@@ -112,8 +121,10 @@ making updates and removal easy.
    {:title \"Hello \\\"$1\\\"\"}
     #+END_QUERY"}}
   ```
+  This becomes especially useful when handling regular expressions.
+  An example of this is in [calendar/macro.query.clj](./modules/calendar/macro.query.clj).
 
-- The contents of `query-transform.clj` and `query-view.clj` are handled similarly to `macro.clj` - copied as-is under the `:query/result-transforms` and `:query/views` sections of `config.edn`, respectively.
+- The contents of `query-transform.clj` and `query-view.clj` are handled similarly to `macro.clj` (copied as-is) under the `:query/result-transforms` and `:query/views` sections of `config.edn`, respectively.
   
   ```clojure
   ;; File: config.edn
@@ -126,18 +137,21 @@ making updates and removal easy.
    :query/views
    {:<name-of-module> FILE-CONTENT}}
   ```
+  An example of this is [bar-chart/query-view.clj](./modules/bar-chart/query-view.clj).
 
 ### Further Notes
 
-The `$1`-like arguments to macros are unaffected by the transformations and can be used as normal.
+The `$1`-like arguments to macros are unaffected by the transformations and can be used normally.
 
-The directory name `<name-of-module>` is used to name the macro,
-result-transform, and view, so these names can be used within the same module or even across modules. For example you could have a module that just provides a view, and is used by several other modules, or just as a view to queries in your graph.
+The directory name (`<name-of-module>`) is used to name the macro,
+result-transform and view. These names can be used within the same module or even across modules. For example, a module could provide a view that is used by several other modules, or even serve as a `:view` to advanced queries throughout the graph.
 
-In CSS, to target the macro body (at time of writing) you can use `div.macro[data-macro-name="<name-of-module>"]`, or create your own elements with unique class names in your view. It's up to you to make any CSS classes unique and not to collide with Logseq's own.
-
-Note: while I made every attempt to make the insertion logic sound, usual caution should be taken. This tool is provided as-is with absolutely no warranty. Use at your own risk (and back up your files). See below for how to preview the changes before applying them.
+In CSS, to target the macro body (and sub-elements), the `div.macro[data-macro-name="<name-of-module>"]` selector can be used. Classes may also be used but it is important to make sure names are unique and do not collide with Logseq's own. The provided modules use `lsm-` as a prefix for this reason.
 
 ## Configuration
 
-If you want only some modules and not others, or to include a different directory, edit the `config.json` file under the "patterns" key. Just make sure the structure remains: `<directory-name>/<name-of-module>/<file-pattern>.clj`.
+Some configuration is possible via the `config.json` file, particularly to add another directory for inclusion. The following structure is currently the only one supported: `<directory-name>/<name-of-module>/<file-pattern>.clj`.
+
+## Disclaimer
+
+While every attempt has been made to ensure the insertion logic is sound, usual caution should be taken. This tool is provided as-is with absolutely no warranty. Use at your own risk and back up your files.

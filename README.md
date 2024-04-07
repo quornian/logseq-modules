@@ -42,7 +42,8 @@ This macro displays a simple progress bar.
 
 ### Bar Chart
 
-Bar Chart can be used as a macro -summarizing a given property - or as a `:view` for your own advanced queries. [Read more...](./modules/bar-chart/README.md)
+Bar Chart can be used as a macro (summarizing a given property) or as a `:view` for your own advanced queries.
+[Read more...](./modules/bar-chart/README.md)
 
 ![](./modules/bar-chart/preview.png)
 

@@ -1,6 +1,6 @@
 # Goals
 
-A macro for summarizing goals
+_Goals_ is a system for establishing, working towards and reviewing a set of goals. It utilizes certain block properties for defining goals and to indicate progress towards them, and provides a macro for summarizing all previously defined goals.
 
 ### Usage
 

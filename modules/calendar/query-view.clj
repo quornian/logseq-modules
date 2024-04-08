@@ -87,13 +87,20 @@
         unformat-block (fn [block] (unformat-text (block-text block)))
 
         ;; Properties for use in an [:a ...] element linking to a block or page
-        ref-link
-        (fn ref-link [ref]
-          {:href (str "#/page/" (:block/uuid ref))
+        page-link
+        (fn page-link [page-name]
+          {:href (str "#/page/" page-name)
            :on-click
            (fn [e] (if (aget e "shiftKey")
-                     (call-api "open_in_right_sidebar" (:block/uuid ref))
-                     (call-api "push_state" :page {:name (:block/uuid ref)})))})]
+                     (call-api "open_in_right_sidebar"
+                               (aget (call-api "get_page" page-name) "uuid"))))})
+        block-link
+        (fn block-link [uuid]
+          {:href (str "#/page/" uuid)
+           :on-click
+           (fn [e] (if (aget e "shiftKey")
+                     (call-api "open_in_right_sidebar" uuid)))})]
+
     ;; The main view
     [:div.lsm-calendar
      {:class [(when (not show-weekends) "lsm-hide-weekends")]}
@@ -112,7 +119,7 @@
             [:div {:class (if past "lsm-past" (if (> ymd today) "lsm-future" "lsm-today"))}
 
              ;; Numeric day of month
-             [:a.page-ref {:href (str "#/page/" (format-date ymd journal-format))} (% ymd 100)]
+             [:a.page-ref (page-link (format-date ymd journal-format)) (% ymd 100)]
 
              ;; Incomplete tasks
              [:ul
@@ -122,7 +129,7 @@
                                 :class [(:block/marker e)
                                         (when (:block/scheduled e) "lsm-scheduled")
                                         (when (and past highlight-overdue) "lsm-overdue")]}
-                  [:a.block-ref (ref-link e) (unformat-block e)]])
+                  [:a.block-ref (block-link (:block/uuid e)) (unformat-block e)]])
                (reverse
                 (sort-by :block/marker
                          (filter (fn [task] (not (contains? #{"DONE" "CANCELED"} (:block/marker task))))
@@ -133,7 +140,7 @@
                (fn [e]
                  [:li.lsm-event {:title (:block/content e)
                                  :class (:block/marker e)}
-                  [:a.block-ref (ref-link e)
+                  [:a.block-ref (block-link (:block/uuid e))
                    (if-let [match (re-find event-pattern (block-text e))]
                      (let [[_ time content] match] [[:span time] (unformat-text content)])
                      (unformat-block e))]])
@@ -146,7 +153,7 @@
                  [:li.lsm-task {:title (:block/content e)
                                 :class [(:block/marker e)
                                         (when (:block/scheduled e) "lsm-scheduled")]}
-                  [:a.block-ref (ref-link e) (unformat-block e)]])
+                  [:a.block-ref (block-link (:block/uuid e)) (unformat-block e)]])
                (reverse
                 (sort-by :block/marker
                          (filter (fn [task] (contains? #{"DONE" "CANCELED"} (:block/marker task)))

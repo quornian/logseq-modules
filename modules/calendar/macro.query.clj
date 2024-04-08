@@ -34,10 +34,7 @@
                   (and
                    [?entry :block/marker _]
                    [?entry :block/page ?journal]
-                   (not [?entry :block/scheduled])))
-
-         [?entry :block/content ?content]
-         [(clojure.string/includes? ?content "demo")]]
+                   (not [?entry :block/scheduled])))]
 
  :result-transform
  (fn [results] (let [{:keys [today calendar]} (first results)

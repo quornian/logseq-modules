@@ -115,11 +115,6 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     margin: 0;
 }
 
-.lsm-calendar .lsm-task {
-    background-color: var(--ls-secondary-background-color);
-    border-radius: 7px 0 0 7px;
-}
-
 .lsm-calendar .lsm-task.DONE>a,
 .lsm-calendar .lsm-task.CANCELED>a {
     text-decoration: line-through;
@@ -131,24 +126,22 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     display: none;
 }
 
-.lsm-calendar li.lsm-overdue>a {
+.lsm-calendar .lsm-task.lsm-overdue a {
     background-color: var(--ls-error-background-color);
     color: var(--ls-error-text-color);
 }
 
-.lsm-calendar .lsm-event>a>span {
+.lsm-calendar .lsm-event .lsm-time {
+    font-size: 10px;
+    letter-spacing: -0.8px;
+    margin: 0 2px 0 0;
     display: inline-block;
-    text-align: center;
-    min-width: 40px;
-    opacity: 70%;
-    font-weight: 500;
-    box-shadow: inset -1px -1px 2px color-mix(in srgb, currentcolor 30%, transparent 70%);
-    border-radius: 7px;
-    padding: 0 3px;
-    margin: 0 1px 0 -3px;
+    /* text-decoration: underline; */
+    opacity: 60%;
 }
 
 
+/*
 .lsm-calendar .lsm-task>a::before {
     display: inline-block;
     width: 14px;
@@ -158,10 +151,8 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     top: 2px;
 
     opacity: 0.8;
-    /* min-width: 18px; */
 
     margin-left: 1px;
-    /* outline: 1px solid var(--ls-link-text-color); */
     border-radius: 7px;
     background-color: var(--ls-link-text-color);
 
@@ -186,6 +177,7 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     content: '✓';
 }
 
+*/
 .lsm-calendar .lsm-past li:not(.TODO)>a {
     opacity: 0.5;
 }

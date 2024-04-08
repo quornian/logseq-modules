@@ -129,7 +129,14 @@
                                 :class [(:block/marker e)
                                         (when (:block/scheduled e) "lsm-scheduled")
                                         (when (and past highlight-overdue) "lsm-overdue")]}
-                  [:a.block-ref (block-link (:block/uuid e)) (unformat-block e)]])
+
+                  [:a.block-ref (block-link (:block/uuid e))
+                   (if past
+                     [:i.ti.ti-alert-triangle]
+                     (if (= "DONE" (:block/scheduled e))
+                       [:i.ti.ti-rotate-rectangle]
+                       [:i.ti.ti-square-rotated]))
+                   (unformat-block e)]])
                (reverse
                 (sort-by :block/marker
                          (filter (fn [task] (not (contains? #{"DONE" "CANCELED"} (:block/marker task))))
@@ -142,8 +149,8 @@
                                  :class (:block/marker e)}
                   [:a.block-ref (block-link (:block/uuid e))
                    (if-let [match (re-find event-pattern (block-text e))]
-                     (let [[_ time content] match] [[:span time] (unformat-text content)])
-                     (unformat-block e))]])
+                     (let [[_ time content] match] [[:span.lsm-time time] (unformat-text content)])
+                     [[:i.ti.ti-calendar] " " (unformat-block e)])]])
                (sort-by :block/content (get events ymd)))]
 
              ;; Complete/canceled tasks
@@ -153,7 +160,11 @@
                  [:li.lsm-task {:title (:block/content e)
                                 :class [(:block/marker e)
                                         (when (:block/scheduled e) "lsm-scheduled")]}
-                  [:a.block-ref (block-link (:block/uuid e)) (unformat-block e)]])
+                  [:a.block-ref (block-link (:block/uuid e))
+                   (if (= "DONE" (:block/marker e))
+                     [:i.ti.ti-check]
+                     [:i.ti.ti-square-rotated-off])
+                   (unformat-block e)]])
                (reverse
                 (sort-by :block/marker
                          (filter (fn [task] (contains? #{"DONE" "CANCELED"} (:block/marker task)))

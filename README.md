@@ -49,21 +49,25 @@ Bar Chart can be used as a macro (summarizing a given property) or as a `:view` 
 
 ## Installation
 
-Use the `install.py` script to install all modules. Just point it to the directory named `logseq` inside your graph:
+The `install.py` script is used to install all modules. Point it to the directory named `logseq` inside the graph:
 ```
 python3 install.py /path/to/your/graph/logseq
 ```
-If you want to preview what the installation would do, pass the `--diff` flag:
+To preview what the installation _would_ do, pass the `--diff` flag:
 ```
-python3 install.py --diff /path/to/your/directory/named/logseq
+python3 install.py --diff /path/to/your/graph/logseq
 ```
-This disables installation and only shows what _would_ be applied.
-
-To show the differences and _also_ apply the changes use `--diff` and `--apply`.
+This disables installation only showing the differences. Adding the `--apply` flag too will also apply the changes.
+```
+python3 install.py --diff --apply /path/to/your/graph/logseq
+```
 
 ### Uninstallation
 
 To remove the installed modules, use the `--uninstall` flag.
+```
+python3 install.py --uninstall /path/to/your/graph/logseq
+```
 
 ## Developing Modules
 
@@ -98,15 +102,15 @@ All entries are inserted in a block like this making updates and removal easy:
 
 To aid in the development of modules, certain files are edited as Clojure files, then transformed into the proper form for `config.edn`.
 
-- The contents of a `macro.clj` file are copied as-is into `logseq/config.edn` within the `:macros` mapping, under the `:<name-of-module>` key.
+- The contents of a `macro.clj` file are encased in a string and placed into `logseq/config.edn` within the `:macros` mapping, under the `:<name-of-module>` key. Any double-quote or backslash characters are properly escaped.
   ```clojure
   ;; File: config.edn
   {:macros
-   {:<name-of-module> FILE-CONTENT}}
+   {:<name-of-module> "<string-escaped-file-content>"}}
   ```
-  An example of this is [progress-bar/macro.clj](./modules/progress-bar/macro.clj).
+  See [progress-bar/macro.clj](./modules/progress-bar/macro.clj) for an example.
 
-- The contents of a `macro.query.clj` file is transformed such that it creates an advanced query _inside_ the macro. Embedding advanced queries in a macro is enabled by inserting a blank line before the query block and escaping double quotes and backslash characters within (thanks to [this comment](https://discuss.logseq.com/t/is-it-possible-with-macros-to-run-a-db-query-for-a-block-id-an-build-the-embed-block-id-inside-a-page/20952/16?u=iant) in the Logseq forums). This transformation allows queries to be written as Clojure source files, with these requirements handled automatically. An example transformation looks like this:
+- The contents of a `macro.query.clj` file is automatically surrounded by a `#+BEGIN_QUERY`...`#+END_QUERY` block, and similar string escaped. Embedding advanced queries in macros is enabled by inserting a blank line before the query (thanks to [this comment](https://discuss.logseq.com/t/is-it-possible-with-macros-to-run-a-db-query-for-a-block-id-an-build-the-embed-block-id-inside-a-page/20952/16?u=iant) in the Logseq forums). This transformation allows queries to be written as Clojure source files, with these requirements handled automatically. An example transformation looks like this:
   
   Source:
   ```clojure
@@ -122,30 +126,28 @@ To aid in the development of modules, certain files are edited as Clojure files,
    {:title \"Hello \\\"$1\\\"\"}
     #+END_QUERY"}}
   ```
-  This becomes especially useful when handling regular expressions.
-  An example of this is in [calendar/macro.query.clj](./modules/calendar/macro.query.clj).
+  See [calendar/macro.query.clj](./modules/calendar/macro.query.clj) for an example.
 
-- The contents of `query-transform.clj` and `query-view.clj` are handled similarly to `macro.clj` (copied as-is) under the `:query/result-transforms` and `:query/views` sections of `config.edn`, respectively.
+- The contents of `query-transform.clj` and `query-view.clj` are copied as-is under the `:query/result-transforms` and `:query/views` sections of `config.edn`, respectively. These are kept as Clojure code snippets with no escaping necessary.
   
   ```clojure
   ;; File: config.edn
   {:macros
-   {:<name-of-module> FILE-CONTENT}
+   {:<name-of-module> "<string-escaped-file-content>"}
 
    :query/result-transforms
-   {:<name-of-module> FILE-CONTENT}
+   {:<name-of-module> <file-content>}
    
    :query/views
-   {:<name-of-module> FILE-CONTENT}}
+   {:<name-of-module> <file-content>}}
   ```
-  An example of this is [bar-chart/query-view.clj](./modules/bar-chart/query-view.clj).
+  See [bar-chart/query-view.clj](./modules/bar-chart/query-view.clj) for an example.
 
 ### Further Notes
 
 The `$1`-like arguments to macros are unaffected by the transformations and can be used normally.
 
-The directory name (`<name-of-module>`) is used to name the macro,
-result-transform and view. These names can be used within the same module or even across modules. For example, a module could provide a view that is used by several other modules, or even serve as a `:view` to advanced queries throughout the graph.
+The directory name (`<name-of-module>`) is used to name the macro, result-transform and view. These names can be used within the same module or even across modules. For example, a module could provide a view that is used by several other modules, or even serve as a `:view` to advanced queries throughout the graph.
 
 In CSS, to target the macro body (and sub-elements), the `div.macro[data-macro-name="<name-of-module>"]` selector can be used. Classes may also be used but it is important to make sure names are unique and do not collide with Logseq's own. The provided modules use `lsm-` as a prefix for this reason.
 

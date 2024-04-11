@@ -41,17 +41,5 @@
                    [?entry :block/page ?journal]
                    (not [?entry :block/scheduled])))]
 
- :result-transform
- (fn [results] (let [{:keys [today calendar]} (first results)
-                     {tasks false, events true} (group-by
-                                                 (fn [et] (nil? (:block/marker et)))
-                                                 (map :entry results))
-                     extract-day (fn [e] (or (:block/scheduled e)
-                                             (:block/journal-day (:block/page e))))
-                     events (group-by extract-day events)]
-                 [{:today today
-                   :calendar calendar
-                   :tasks (group-by extract-day tasks)
-                   :events (dissoc events nil)}]))
-
+ :result-transform :calendar
  :view :calendar}

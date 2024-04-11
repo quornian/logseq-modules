@@ -1,10 +1,10 @@
-(fn [[{:keys [today calendar tasks events]}]]
+(fn [[{:keys [today calendar days]}]]
   (let [% mod, ÷ quot
 
         ;; Calendar view settings
         settings (:block/properties calendar)
         show-weekends (get settings :calendar/show-weekends true)
-        highlight-overdue (get settings :calendar/highlight-overdue false)
+        highlight-overdue (get settings :calendar/highlight-overdue true)
 
         ;; User preferences
         ;; :journal/page-title-format "yyyy-MM-dd EEEE"
@@ -68,24 +68,6 @@
                  "EEEE" (weekday (ymd->wd ymd))
                  match)))))
 
-        ;; Offset a date back to the start of the week
-        week-start (fn [ymd] (ymd- ymd (ymd->wd ymd)))
-
-        ;; First line of a block's content
-        block-text (fn [b] (first (clojure.string/split-lines (:block/content b))))
-
-        ;; Strip a block's content of any formatting characters
-        unformat-text
-        (fn [text]
-          (let [to-strip (str "^(TODO|LATER|DOING|NOW|DONE|CANCELED) "
-                              "|](\\[^)]+\\)"          ;; Links ](...)
-                              "|[\\[\\]]+"             ;; Any other [ or ]
-                              "|\\{\\{[^}]*\\}\\}"     ;; Macros {{...}}
-                              "|\\(\\([^)]*\\)\\)"     ;; Block refs ((...))
-                              "|\\*\\*|\\~\\~| - ")]   ;; ** or ~~ or " - "
-            (clojure.string/replace text (re-pattern to-strip) " ")))
-        unformat-block (fn [block] (unformat-text (block-text block)))
-
         ;; Properties for use in an [:a ...] element linking to a block or page
         page-link
         (fn page-link [page-name]
@@ -95,12 +77,15 @@
                      (call-api "open_in_right_sidebar"
                                (aget (call-api "get_page" page-name) "uuid"))))})
         block-link
-        (fn block-link [uuid]
-          {:href (str "#/page/" uuid)
-           :on-click
-           (fn [e] (if (aget e "shiftKey")
-                     (call-api "open_in_right_sidebar" uuid)))})]
+        (fn block-link [attrs uuid]
+          (assoc attrs
+                 :href (str "#/page/" uuid)
+                 :on-click
+                 (fn [e] (if (aget e "shiftKey")
+                           (call-api "open_in_right_sidebar" uuid)))))]
 
+    (log "Calendar settings:", (clj->js {:highlight-overdue highlight-overdue
+                                         :show-weekends show-weekends}))
     ;; The main view
     [:div.lsm-calendar
      {:class [(when (not show-weekends) "lsm-hide-weekends")]}
@@ -111,63 +96,38 @@
      ;; Cells for each day
      (let [current (ymd->jdn today)
            start (- current (jdn->wd current) 7)
-           visible-days (range start (+ start 28))
-           event-pattern (re-pattern "^(\\d\\d:\\d\\d) - (.*)")]
+           visible-days (range start (+ start 28))]
        (map
         (fn [day]
           (let [ymd (jdn->ymd day), past (< ymd today)]
-            [:div {:class (if past "lsm-past" (if (> ymd today) "lsm-future" "lsm-today"))}
+            [:div.lsm-day {:class (if past "lsm-past" (if (> ymd today) "lsm-future" "lsm-today"))}
 
              ;; Numeric day of month
              [:a.page-ref (page-link (format-date ymd journal-format)) (% ymd 100)]
 
-             ;; Incomplete tasks
-             [:ul
+             ;; This day's entries
+             [:div.lsm-entries
               (map
-               (fn [e]
-                 [:li.lsm-task {:title (:block/content e)
-                                :class [(:block/marker e)
-                                        (when (:block/scheduled e) "lsm-scheduled")
-                                        (when (and past highlight-overdue) "lsm-overdue")]}
-
-                  [:a.block-ref (block-link (:block/uuid e))
-                   (if past
-                     [:i.ti.ti-alert-triangle]
-                     (if (= "DONE" (:block/scheduled e))
-                       [:i.ti.ti-rotate-rectangle]
-                       [:i.ti.ti-square-rotated]))
-                   (unformat-block e)]])
-               (reverse
-                (sort-by :block/marker
-                         (filter (fn [task] (not (contains? #{"DONE" "CANCELED"} (:block/marker task))))
-                                 (get tasks ymd)))))]
-             ;; Events
-             [:ul
-              (map
-               (fn [e]
-                 [:li.lsm-event {:title (:block/content e)
-                                 :class (:block/marker e)}
-                  [:a.block-ref (block-link (:block/uuid e))
-                   (if-let [match (re-find event-pattern (block-text e))]
-                     (let [[_ time content] match] [[:span.lsm-time time] (unformat-text content)])
-                     [[:i.ti.ti-calendar] " " (unformat-block e)])]])
-               (sort-by :block/content (get events ymd)))]
-
-             ;; Complete/canceled tasks
-             [:ul
-              (map
-               (fn [e]
-                 [:li.lsm-task {:title (:block/content e)
-                                :class [(:block/marker e)
-                                        (when (:block/scheduled e) "lsm-scheduled")]}
-                  [:a.block-ref (block-link (:block/uuid e))
-                   (if (= "DONE" (:block/marker e))
-                     [:i.ti.ti-check]
-                     [:i.ti.ti-square-rotated-off])
-                   (unformat-block e)]])
-               (reverse
-                (sort-by :block/marker
-                         (filter (fn [task] (contains? #{"DONE" "CANCELED"} (:block/marker task)))
-                                 (get tasks ymd)))))]]))
-
+               (fn [{:keys [day time local uuid marker title]}]
+                 (let [complete (contains? #{"DONE" "CANCELED" "CANCELLED"} marker)
+                       overdue (and highlight-overdue past marker (not complete))]
+                   [:a.block-ref
+                    (block-link
+                     {:class [(when marker "lsm-task") marker
+                              (when overdue "lsm-overdue")]} uuid)
+                    ;; Time
+                    (when time [:span.lsm-time time])
+                    ;; Icon
+                    (case marker
+                      nil         (when-not time [:i.ti.ti-calendar])
+                      "DONE"      [:i.ti.ti-checkbox]
+                      ("CANCELED"
+                       "CANCELLED") [:i.ti.ti-square-off]
+                      (if past [:i.ti.ti-layout-collage]
+                          (if local
+                            [:i.ti.ti-square]
+                            [:i.ti.ti-arrow-autofit-right])))
+                    ;; Title
+                    [:span title]]))
+               (get days ymd))]]))
         visible-days))]))

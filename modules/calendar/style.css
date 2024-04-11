@@ -8,14 +8,13 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
 
 
 .lsm-calendar {
+    box-shadow: 2px 3px 8px 1px color-mix(in srgb, var(--ls-border-color) 50%, transparent 50%);
+    margin: 5px 2px;
+
     display: grid;
     max-width: 100%;
     grid-template-columns: repeat(7, 1fr);
     gap: 1px;
-
-    box-shadow: 2px 3px 8px 1px color-mix(in srgb, var(--ls-border-color) 50%, transparent 50%);
-
-    margin: 5px 2px;
 }
 
 .lsm-calendar.lsm-hide-weekends {
@@ -40,32 +39,32 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     text-align: center;
 }
 
-.lsm-calendar>div {
+.lsm-calendar>.lsm-day {
     padding: 0 2px 0 3px;
     height: 120px;
     overflow: hidden;
 }
 
-.lsm-calendar>div::-webkit-scrollbar {
+.lsm-calendar>.lsm-day::-webkit-scrollbar {
     width: 4px;
 }
 
-.lsm-calendar>div:hover {
+.lsm-calendar>.lsm-day:hover {
     overflow: auto;
 }
 
-.lsm-calendar>div:hover li {
+.lsm-calendar>.lsm-day:hover li {
     overflow: visible;
     margin: 0;
 }
 
-.lsm-calendar>div:hover a {
+.lsm-calendar>.lsm-day:hover a {
     white-space: nowrap;
 }
 
 /* Weekend Days */
-.lsm-calendar>div:nth-child(7n),
-.lsm-calendar>div:nth-child(7n+1) {
+.lsm-calendar>.lsm-day:nth-child(7n),
+.lsm-calendar>.lsm-day:nth-child(7n+1) {
     background-image: repeating-linear-gradient(315deg,
             var(--ls-primary-background-color),
             var(--ls-primary-background-color) 10px,
@@ -78,7 +77,7 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     visibility: hidden;
 }
 
-.lsm-calendar>div.lsm-today {
+.lsm-calendar>.lsm-day.lsm-today {
     background-color: var(--ls-primary-background-color);
     outline: 1px solid var(--ls-active-primary-color);
     border-radius: 2px;
@@ -86,98 +85,73 @@ div:has(div[data-macro-name="calendar"])~div.block-properties {
     z-index: 1;
 }
 
-.lsm-calendar>div>a {
-    margin: 1px 0;
+.lsm-calendar>.lsm-day>a {
     font-size: 13px;
     font-weight: 500;
     text-decoration: none;
-    padding-right: 5px;
-
     display: block;
-    border-radius: 3px;
-    box-shadow: 0 0 4px 1px var(--ls-primary-background-color);
 }
 
-.lsm-calendar ul {
-    margin: 0;
+.lsm-calendar .lsm-entries {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: min-content max-content;
+    color: var(--ls-link-text-color);
 }
 
-.lsm-calendar li {
-    list-style: none;
-    margin: 0;
+.lsm-calendar .lsm-entries>* {
     font-size: 12px;
     white-space: nowrap;
 }
 
-.lsm-calendar li>a {
+.lsm-calendar .lsm-entries .ti {
+    transform: none;
+    line-height: inherit;
+}
+
+
+.lsm-calendar .lsm-entries a {
+    display: flex;
+    gap: 3px;
     border: none;
     padding: 0;
     margin: 0;
 }
 
-.lsm-calendar .lsm-task.DONE>a,
-.lsm-calendar .lsm-task.CANCELED>a {
-    text-decoration: line-through;
-    opacity: 0.5;
-    background-color: transparent;
-}
-
-.lsm-calendar .lsm-past .lsm-task.CANCELED {
-    display: none;
-}
-
-.lsm-calendar .lsm-task.lsm-overdue a {
-    background-color: var(--ls-error-background-color);
-    color: var(--ls-error-text-color);
-}
-
-.lsm-calendar .lsm-event .lsm-time {
+.lsm-calendar .lsm-entries a .lsm-time {
     font-size: 10px;
     letter-spacing: -0.8px;
     margin: 0 2px 0 0;
     display: inline-block;
     /* text-decoration: underline; */
     opacity: 60%;
+    transform: translateY(2px);
 }
 
-
-/*
-.lsm-calendar .lsm-task>a::before {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    overflow: hidden;
-    position: relative;
-    top: 2px;
-
-    opacity: 0.8;
-
-    margin-left: 1px;
-    border-radius: 7px;
-    background-color: var(--ls-link-text-color);
-
-    text-align: center;
-    font-weight: 600;
-    color: var(--ls-primary-background-color);
+.lsm-calendar .lsm-task {
+    background-color: var(--ls-secondary-background-color);
 }
 
-.lsm-calendar .lsm-task>a::before {
-    content: '⇢';
+.lsm-calendar .lsm-past a:not(.lsm-overdue),
+.lsm-calendar .DONE,
+.lsm-calendar .CANCELED,
+.lsm-calendar .CANCELLED {
+    opacity: 0.4;
+    background-color: transparent;
 }
 
-.lsm-calendar .lsm-task.lsm-scheduled>a::before {
-    content: '↳';
+.lsm-calendar .DONE span,
+.lsm-calendar .CANCELED span,
+.lsm-calendar .CANCELLED span {
+    text-decoration: line-through;
 }
 
-.lsm-calendar .lsm-task.CANCELED>a::before {
-    content: '✕';
+.lsm-calendar .lsm-past .CANCELED,
+.lsm-calendar .lsm-past .CANCELLED {
+    display: none;
 }
 
-.lsm-calendar .lsm-task.DONE>a::before {
-    content: '✓';
-}
-
-*/
-.lsm-calendar .lsm-past li:not(.TODO)>a {
-    opacity: 0.5;
+.lsm-calendar .lsm-overdue {
+    background-color: var(--ls-error-background-color);
+    color: var(--ls-error-text-color);
 }

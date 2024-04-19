@@ -5,6 +5,7 @@ import glob
 import json
 import os
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 
@@ -35,26 +36,34 @@ class Transformation(Enum):
     ClojureKeywordString = 2
 
 
+@dataclass
+class Module:
+    files: list[str]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Install/update all modules")
     parser.add_argument("--uninstall", action="store_true", help="uninstall")
     parser.add_argument(
+        "-o",
         "--output-directory",
         help="save modifications into this directory rather than "
-        "overwriting the original files (useful for previewing changes "
-        "before applying)",
+        "overwriting the original files",
     )
     parser.add_argument(
+        "-d",
         "--diff",
         action="store_true",
         help="show a diff of changes without applying them",
     )
     parser.add_argument(
+        "-c",
         "--color",
         action="store_true",
         help="always use color",
     )
     parser.add_argument(
+        "-a",
         "--apply",
         action="store_true",
         help="(also) apply the changes. In diff mode this defaults to false, "
@@ -67,8 +76,21 @@ def main():
         help="hide log messages",
     )
     parser.add_argument(
+        "-m",
+        "--select",
+        nargs="+",
+        metavar="MODULE_NAME",
+        help="limits the installation to modules given by name to this option",
+    )
+    parser.add_argument(
+        "-x",
+        "--export",
+        action="store_true",
+        help="instead of updating an existing configuration, create an empty "
+        "one and export into it",
+    )
+    parser.add_argument(
         "logseq_directory",
-        # metavar="logseq-directory"
         help="path to your graph's logseq directory, where config.edn lives",
     )
     args = parser.parse_args()
@@ -82,13 +104,30 @@ def main():
     if args.diff:
         log.enabled = False
 
-    with open(os.path.join(input_directory, "config.edn")) as config_edn:
-        config = config_edn.readlines()
-    try:
-        with open(os.path.join(input_directory, "custom.css")) as custom_css:
-            styles = custom_css.readlines()
-    except FileNotFoundError:
-        styles = [""]
+    if args.export:
+        if args.uninstall:
+            parser.error("Cannot --uninstall when performing --export")
+        if os.path.exists(output_directory):
+            parser.error("Output directory should not exist prior to --export")
+        os.makedirs(output_directory)
+        config = [
+            "{:macros\n",
+            " {}\n",
+            " :query/result-transforms\n",
+            " {}\n",
+            " :query/views\n",
+            " {}\n",
+            "}\n",
+        ]
+        styles = []
+    else:
+        with open(os.path.join(input_directory, "config.edn")) as config_edn:
+            config = config_edn.readlines()
+        try:
+            with open(os.path.join(input_directory, "custom.css")) as custom_css:
+                styles = custom_css.readlines()
+        except FileNotFoundError:
+            styles = [""]
 
     original_config = config[:]
     original_styles = styles[:]
@@ -98,46 +137,54 @@ def main():
 
     key = ":macros"
     log(f"\nPreparing {key} entries for config.edn...")
+    patterns = install_config["patterns"]["macros"]
     config = install(
         config,
         key=key,
         begin_mark=BEGIN_EDN.format("macros"),
         end_mark=END_EDN.format("macros"),
-        include_patterns=install_config["patterns"]["macros"],
+        paths=match_paths(patterns, args.select),
         transformation=Transformation.ClojureKeywordString,
         uninstall=args.uninstall,
+        exclude_marks=args.export,
     )
     key = ":query/result-transforms"
     log(f"\nPreparing {key} entries for config.edn...")
+    patterns = install_config["patterns"]["query-transforms"]
     config = install(
         config,
         key=key,
         begin_mark=BEGIN_EDN.format("query-result-transforms"),
         end_mark=END_EDN.format("query-result-transforms"),
-        include_patterns=install_config["patterns"]["query-transforms"],
+        paths=match_paths(patterns, args.select),
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
+        exclude_marks=args.export,
     )
     key = ":query/views"
-    log("\nPreparing :macros entries for config.edn...")
+    log(f"\nPreparing {key} entries for config.edn...")
+    patterns = install_config["patterns"]["query-views"]
     config = install(
         config,
         key=key,
         begin_mark=BEGIN_EDN.format("query-views"),
         end_mark=END_EDN.format("query-views"),
-        include_patterns=install_config["patterns"]["query-views"],
+        paths=match_paths(patterns, args.select),
         transformation=Transformation.ClojureKeywordValue,
         uninstall=args.uninstall,
+        exclude_marks=args.export,
     )
     log("\nPreparing CSS style entries for custom.css...")
+    patterns = install_config["patterns"]["styles"]
     styles = install(
         styles,
         key=EOF,
         begin_mark=BEGIN_CSS.format("styles"),
         end_mark=END_CSS.format("styles"),
-        include_patterns=install_config["patterns"]["styles"],
+        paths=match_paths(patterns, args.select),
         transformation=Transformation.PlainText,
         uninstall=args.uninstall,
+        exclude_marks=args.export,
     )
 
     # Normalize changes
@@ -185,14 +232,26 @@ def atomic_overwrite(path, content):
     log("Done.")
 
 
+def match_paths(patterns, select):
+    paths = []
+    for pattern in patterns:
+        for path in glob.glob(pattern):
+            [*_, module_name, _] = path.split(os.sep)
+            if select and module_name not in select:
+                continue
+            paths.append(path)
+    return paths
+
+
 def install(
     config: list[str],
     key: str,
     begin_mark: str,
     end_mark: str,
-    include_patterns: list[str],
+    paths: list[str],
     transformation: Transformation,
     uninstall: bool,
+    exclude_marks: bool = False,
 ):
     insertion = calculate_insertion(config, key, begin_mark, end_mark)
 
@@ -215,7 +274,10 @@ def install(
             after[0] = after[0][len(indent) :]
         return before + after
 
-    compiled = compile_files(indent, include_patterns, transformation)
+    compiled = compile_files(indent, paths, transformation)
+
+    if exclude_marks:
+        begin_mark = end_mark = ""
 
     config = []
     config.extend(before)
@@ -298,14 +360,11 @@ def trim_whitespace(lines):
 
 
 def compile_files(
-    indent: str, include_patterns: list[str], transformation: Transformation
+    indent: str, paths: list[str], transformation: Transformation
 ) -> list[str]:
     compiled = []
     prev = 0
 
-    paths = []
-    for pattern in include_patterns:
-        paths.extend(glob.glob(pattern))
     paths.sort(key=lambda path: path.split("/")[1])  # Module name
     for path in paths:
         _, name, filename = path.split("/", 2)

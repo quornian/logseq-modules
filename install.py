@@ -225,7 +225,7 @@ def atomic_overwrite(path, content):
     with open(temp_path, "w") as temp_file:
         temp_file.write(content)
     try:
-        os.rename(temp_path, path)
+        os.replace(temp_path, path)
     except:
         os.unlink(temp_path)
         raise
@@ -365,9 +365,9 @@ def compile_files(
     compiled = []
     prev = 0
 
-    paths.sort(key=lambda path: path.split("/")[1])  # Module name
+    paths.sort(key=lambda path: path.split(os.sep)[1])  # Module name
     for path in paths:
-        _, name, filename = path.split("/", 2)
+        _, name, filename = path.split(os.sep, 2)
         doc_lines = []
         end_doc = False
         code_lines = []

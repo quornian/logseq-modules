@@ -53,20 +53,30 @@ The `install.py` script is used to install all modules. Point it to the director
 ```
 python3 install.py /path/to/your/graph/logseq
 ```
+(On Windows, this might be something like `python.exe install.py 'C:\Users\your\graph\logseq'`),
+
 To preview what the installation _would_ do, pass the `--diff` flag:
 ```
-python3 install.py --diff /path/to/your/graph/logseq
+python3 install.py /path/to/your/graph/logseq --diff
 ```
-This disables installation only showing the differences. Adding the `--apply` flag too will also apply the changes.
+This disables installation only showing the differences. Adding the `--apply` flag will also apply the changes.
 ```
-python3 install.py --diff --apply /path/to/your/graph/logseq
+python3 install.py /path/to/your/graph/logseq --diff --apply
 ```
+
+### Customizing the Installation
+
+You can choose a subset of modules to install by passing the `--select` flag. For example, to install the common style fixes and the calendar module:
+```
+python3 install.py /path/to/your/graph/logseq --select common calendar
+```
+Note that this will remove any other modules that were previously installed.
 
 ### Uninstallation
 
-To remove the installed modules, use the `--uninstall` flag.
+To remove all installed modules, use the `--uninstall` flag.
 ```
-python3 install.py --uninstall /path/to/your/graph/logseq
+python3 install.py /path/to/your/graph/logseq  --uninstall
 ```
 
 ## Developing Modules

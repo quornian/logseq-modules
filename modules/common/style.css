@@ -1,0 +1,6 @@
+/* Queries inside macros only work if preceded by a blank line. This results
+ * in a <br> tag being added and the query appearing lower than the bullet.
+ * Remove the <br> here: */
+div.macro>div:first-child>br:first-child {
+    display: none;
+}
